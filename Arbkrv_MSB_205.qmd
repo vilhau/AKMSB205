@@ -1,0 +1,610 @@
+---
+title: "arbkrv_MSB_205"
+author: "Vilde & Susann"
+format: pdf
+editor: visual
+lang: nb-NO
+---
+
+## 
+
+```{r setup, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(dplyr)
+library(huxtable)
+library(lubridate)
+library(sf)
+library(here)
+library(tmap)
+library(sp)
+library(spdep)
+library(spatialreg)
+library(lmtest)
+library(sandwich)
+library(units)
+library(foreign)
+library(readr)
+library(car)
+library(ragg)
+```
+
+(sjekker om jeg får pushet)
+
+# Oppgave 1)
+
+Artikkelen tar for seg den hedoniske eiendomsverdimodellen som en av de mest direkte fremvisningen av hvordan private markeder kan avsløre forbrukerens betalingsvillighet (WTP) for miljøkvalitet. Modellen har blitt tatt i bruk på mange bruksområder siden den først ble utviklet på 19-70 tallet og har med årene akselerert i takt med fremskritt innen økonometri og økt datatilgjengelighet. Modellen tar utgangspunkt i at kjøpere velger eiendommer utfra boligegenskaper og stedspesifikke fasiliteter, og etter å ha blitt raffinert gjennom førti år har den blitt en de fremste tilnærmingene til å verdsette endringer i miljøfasiliteter innen offentlig politikk og akademisk forskning.
+
+Det hedoniske rammeverket ble først etablert som en likevektsmodell for å forstå hvilket utslag differensierte produktpriser hadde på forbrukerens etterspørsel etter produktegenskaper/attributter. Når det brukes i boligsammenheng inkluderer den informasjon om tilbudet av boliger, husholdningers preferanser og inntekt, utviklers avgjørelser om nye boliger og videresalg av eksisterende boliger. Markedslikevekt vil oppstå når flytting ikke vil øke nytten for husholdninger. Likevekts konsept viser til et forhold mellom boligpriser og boligkarakteristikk/egenskap som avslører hver kjøpers MWTP for hver fasilitet med forutsetningen om at kjøpere er fult informert, mobile og i stand til å kjøpe kontinuerlige nivåer av hver egenskap.
+
+Hver kjøpers MWTP for fasiliteten kan estimeres i tre trinn: 1. Estimere den hedoniske prisfunksjonen ved å bruke observerte salgsdata. 2. Delvis differensiere prisfunksjonen med hensyn til renter for å estimere implisittprisfunksjon. 3. Tolke de resulterende implisitt-prisverdiene betalt av hver kjøper som estimater av kjøperens MWTP.
+
+Over tid kan MWTP-en til kjøpere endres, dette kan sees på som en endring i funksjonen for implisittpris for fasiliteten/egenskapen. Faktorer som kan være med på å endre kjøperes MWTP kan være retningslinjer som øker arbeidsproduktivitet, induserer migrasjon, gir ny informasjon rundt fasilitetene eller endrer fasilitetsnivåer.
+
+**Definere markeder og innhente data.**
+
+Det første steget i bruk av den hedoniske eiendomsverdimodellen er å definere markedet slik at det tilfredsstiller «loven om én prisfunksjon». Det vil si at identiske hus vil selges for samme pris hvor som helst i markedet. De romlige og tidsmessige grensene som tilfredsstiller den betingelsen vil kunne variere på tvers av rom og tid fordi informasjon, institusjoner og flyttekostnader endres. Det er vanlig å definere markedet som et enkelt storbyområde over noen år. Det vil være lettere å opprettholde betingelsen om én prisfunksjon mellom lokasjoner i et storbyområde, mens det vil være mindre sannsynlig hvis markedet defineres til å omfatte flere storbyområder og/eller flere år.  Dette fordi den hedoniske eiendomsverdimodellen ignorer arbeidsmarkedshensyn og heterogene flyttekostnader, noe som gjør det vanskelig å oversette hedoniske priser til MWTP-målinger dersom markedet omfatter flere storbyområder. Arbeidsmarkedshensyn og heterogene flyttekostnader kan komme fra flytting mellom storbyområder. Samtidig som arbeidstakere kanskje må bytte jobb, samt at det vil forekomme variasjoner i skattepolitikk og levekostnader (sett vekk fra boliger).  
+
+Dersom man slår sammen data fra en lang periode vil man også få lignende problemer med MWTP-målinger. Dette fordi boligfunksjoner kan endre seg under høykonjunkturer dersom makroøkonomiske faktorer er med på å endre beløpene boligkjøpere er villig til å betale for fasiliteter. Samtidig som policyer som feks forbedrer luftkvaliteten vil være med på å redusere kjøperes MWTP for flere luftkvalitetsforbedringer.
+
+Neste trinn vil være å innhente data. Når det kommer til datainnsamling, er gullstanderen inn hedoniske eiendomsverdistudier et tilfeldig utvalg av boligtransaksjonspriser og egenskaper/fasiliteter for det aktuelle studieområde.
+
+**Utelatt variabel skjevhet**
+
+Miljøfasiliteter i den hedoniske eiendomsverdimodellen viser tendenser til å være romlig korrelert på grunn av naturlige trekk ved geografi, miljøtilbakemeldingseffekter og stemmegivning om lokale fellesgoder. Potensialet for romlig korrelasjon fører til utbredt bekymring for utelatt-variabel skjevhet. Dette fordi det vil være usannsynlig for forskere å inkludere alle fasiliteter som vil være betydningsfulle for kjøpere. Videre vil også uobserverte fasiliteter kunne korreleres med fasiliteter av interesse, og dermed føre til skjevhet. Et eksempel vil være dersom en velstående familie flytter til områder med bedre luftkvalitet og deretter stemmer for å øke offentlig skolefinansiering, vil MWTP estimatet for luftkvalitet være skjev dersom skolekvalitet er utelatt fra modellen. For at de resulterende estimatene skal være troverdige må forskningsdesignet isolere eksogen variasjon i fasilitetene av interesse.
+
+# Oppgave 2)
+
+## i)
+
+Lastet ned datsett fra Kaggle, sjekket variblene og definisjonene. Ser greit ut.
+
+## ii)
+
+```{r leser inn csv}
+kc_house_data <- read_csv("kc_house_data.csv")
+```
+
+## iii)
+
+Sorterer salgene etter dato med siste salg først:
+
+```{r sorterer}
+kc_house_data <- arrange(kc_house_data, desc(date))
+```
+
+## iv)
+
+Velger ut siste salg fra datasettet:
+
+```{r siste salget}
+kc_house_data <- kc_house_data %>% 
+  distinct(id, .keep_all = TRUE)
+```
+
+## v)
+
+```{r konverterer til sf objekt + grafisk projeksjon}
+kc_house_data_sf <- st_as_sf(kc_house_data,
+                             coords = c(x = "long",
+                                        y = "lat"),
+                             crs = 4326) 
+```
+
+## vi)
+
+```{r konverterer til projeksjon}
+kc_house_data_sf <- st_as_sf(kc_house_data,
+                             coords = c(x = "long",
+                                        y = "lat"),
+                             crs = 4326) %>%
+   st_transform(2926)
+```
+
+## vii)
+
+Bruker koordinater, 47.60621, -122.33207, fra Seattles wikipediaside som CBD for Seattle:
+
+```{r koordinater som CBD}
+cbd <- st_sfc(st_point(c(-122.33207, 47.60621)), crs = 4326) %>% 
+  st_transform(2926)
+```
+
+viii) 
+
+```{r konverterer punkt, finner avstand og konverterer til km}
+kc_house_data_sf <-  kc_house_data_sf %>% 
+  mutate(dist_cbd = st_distance(cbd, .,
+                                by_element = TRUE),
+    dist_cbd_km = set_units(dist_cbd, km)
+  )
+```
+
+## Oppgave 3)
+
+```{r leser inn shp-fil og transponerer}
+kc_wadoh_map <- here("maps/WADOH_Environmental_Health_Disparities_Index_Calculated_for_King_County___wadohehdindex_area/WADOH_Environmental_Health_Disparities_Index_Calculated_for_King_County___wadohehdindex_area.shp") %>% 
+      st_read() %>% 
+  st_transform(2926)
+```
+
+```{r plukket ut variabler}
+kc_wadoh_map <- kc_wadoh_map %>%
+select(
+GEO_ID_TRT,
+EHD_percen,#Environmental Health Index, weighted score many vars
+linguist_2,#Pop. age 5+ speaking English less than "very well"
+poverty_pe,#Percentage people living in poverty
+POC_percen,#People of Color in percentage of pop. in tract
+transporta,#% of income spent on transportation median family in tract
+unemploy_2,#percentage unemployed
+housing_pe,#% of households in group "Unaffordable Housing" (>30% inc.)
+traffic_pe,#% of pop. near heavy traffic roadways
+diesel,# nox consentration
+ozone,# ozone consentration
+PM25, # consentration of Particulate Matter in air
+toxic_rele, # Toxic release from factories
+hazardous_, # Hazardous Waste Treatment Storage and disposal Facilities
+lead_perce, # measure of Lead paint in houses
+superfund, # Proximity to contaminated sites on national list
+facilities, # Proximity to Risk Management Plan Facilities
+wastewater, # Proximity to wastewater facilities
+sen_pop_pe, # % pop. over 65
+socio_perc # score social economic determants, low best
+)
+```
+
+```{r}
+acs_b19101_fam_inc <- read.dbf("../maps/censusSHP/acs_b19101_familyincome.dbf")
+attach(acs_b19101_fam_inc)
+```
+
+```{r inntektsvariabler}
+acs_b19101_fam_inc <- acs_b19101_fam_inc %>% 
+    mutate(low = (E19101138 + E19101139 + E19101140 + E19101141 + 
+                      E19101142 + E19101143)/E19101137) %>% 
+    mutate(mid = (E19101144 + E19101145 + E19101146 + E19101147 + 
+                      E19101148 + E19101149)/E19101137) %>% 
+    mutate(high = (E19101150 + E19101151 + E19101152 + E19101153)/E19101137)
+```
+
+```{r}
+acs_b19101_fam_inc <- acs_b19101_fam_inc %>% 
+    select(GEOIDTRT, low, mid, high) %>% 
+    rename(GEO_ID_TRT = GEOIDTRT)
+```
+
+```{r}
+kc_wadoh_map_2 <- left_join(
+    acs_b19101_fam_inc,
+    st_drop_geometry(kc_wadoh_map),
+    by = "GEO_ID_TRT")
+```
+
+```{r}
+kc_tracts10 <- here("../maps/censusSHP/tracts10.shp") %>% 
+  st_read() %>% 
+  st_transform(2926)
+```
+
+```{r}
+kc_tracts10_shore <- here("../maps/censusSHP/tracts10_shore.shp") %>% 
+  st_read() %>% 
+  st_transform(2926)
+```
+
+```{r}
+kc_tracts10_env_data <- left_join(
+  kc_tracts10, kc_wadoh_map_2,
+  by = "GEO_ID_TRT"
+  )
+kc_tracts10_shore_env_data <- left_join(
+  kc_tracts10_shore, kc_wadoh_map_2,
+  by = "GEO_ID_TRT"
+  )
+```
+
+```{r}
+kc_houses_env_var <- st_join(kc_house_data_sf, kc_tracts10_shore_env_data)
+kc_tracts10_shore_env_var <- st_join(kc_house_data_sf, kc_tracts10_shore_env_data)
+```
+
+```{r}
+st_write(kc_house_data, "../maps/kc_house_data.gpkg", append = FALSE)
+st_write(kc_tracts10, "../maps/kc_tracts10.gpkg", append = FALSE)
+st_write(kc_tracts10_shore, "../maps/kc_tracts10_shore.gpkg", append = FALSE)
+st_write(kc_houses_env_var, "../maps/kc_houses_env_var.gpkg", append = FALSE)
+st_write(kc_tracts10_shore_env_var, "../maps/censusSHP/kc_tracts10_shore_env_var.gpkg", append = FALSE)
+```
+
+# Oppgave 4
+
+## i)
+
+```{r}
+summary(kc_tracts10_env_data)
+```
+
+```{r}
+summary(kc_tracts10_shore_env_var)
+```
+
+## ii)
+
+I *tracts10_shore* ligger flere observasjoner i havet, og disse settes til NA verdier. Dette kan være hus som ligger langs kysten eller har fått upresis beliggenhet i datasettet. *Tract10* kutter kartet ved sjøgrensen og dermed er ikke disse 25 NA verdiene med blant observasjonene.
+
+QGIS viser disse observasjonene ved *tracts10*, *tracts10_shore* & *kc_houses_env_var*:
+
+![observasjon utenfor WA state](utenfor_WAstate.png)
+
+![Observasjon utenfor kystlinjen.a](utenfor_kystlinjen_1.png)
+
+![Observasjon utenfor kystlinjen.b](utenfor_kystlinjen_2.png)
+
+## iii)
+
+Dropper Observasjonen 3518000180 ved å:
+
+```{r}
+kc_houses_env_var <- arrange(kc_houses_env_var, desc(id))
+kc_houses_env_var_omit <- kc_houses_env_var[-c(11997),]
+```
+
+```{r}
+st_write(kc_houses_env_var_omit, "../maps/kc_houses_env_var_omit.gpkg", append = FALSE)
+```
+
+```{r faktor variabel}
+kc_houses_env_var_omit <- kc_houses_env_var_omit %>% 
+    mutate(
+        year_month = substr(date, start = 1, stop = 7))
+```
+
+```{r}
+st_write(kc_houses_env_var_omit, "../maps/kc_houses_env_var_omit.gpkg", append = FALSE)
+```
+
+# Oppgave 5
+
+Får ikke geoda og qis til å funke
+
+# Oppgave 6
+
+## i)
+
+Når man ser på boligpriser i sammenheng med boligstørrelse ser man at boliger med høy pris og liten størrelse befinner seg rundt Seattle sentrum. Videre ser man boligene som er av stor størrelse til høy pris finnes øst i Seattle. Til slutt ser man at boligene av liten størrelse og til lav pris, sammen med boligene av stor størrelse til lav pris befinner seg i nær sentrum av Seattle.
+
+## Funn fra EDA
+
+```{r, message=FALSE}
+attach(kc_houses_env_var_omit)
+```
+
+### 1. Huskarakteristika
+
+```{r}
+mod1 <- "price ~ bedrooms + bathrooms + sqft_living + sqft_lot + sqft_above + floors + grade + yr_built + yr_renovated + waterfront + condition + view + year_month"
+```
+
+### 2. Huskarakteristika, distanse til cbd og tracts_var
+
+```{r}
+mod2 <- "price ~ bedrooms + bathrooms + year_month + linguist_2 + poverty_pe + POC_percen +  unemploy_2 + sen_pop_pe + facilities + wastewater + traffic_pe + diesel + superfund + transporta + housing_pe + ozone + PM25 + toxic_rele + hazardous_ + lead_perce + socio_perc + sqft_living + sqft_lot + floors  + grade + yr_built + yr_renovated + waterfront + condition + view + dist_cbd_km"
+```
+
+### 3. Huskarakteristika, distanse til cbd og EHD
+
+```{r}
+mod3 <- "price ~ bedrooms + bathrooms + sqft_living + sqft_lot + sqft_above + floors + grade + yr_built + yr_renovated + waterfront + condition + view + dist_cbd_km + EHD_percen + low + high + year_month"
+```
+
+```{r}
+hedon1 <- lm(mod1, data = kc_houses_env_var_omit)
+hedon2 <- lm(mod2, data = kc_houses_env_var_omit)
+hedon3 <- lm(mod3, data = kc_houses_env_var_omit)
+```
+
+```{r}
+huxreg("Hedon1" = hedon1, "Hedon2" = hedon2, "Hedon3" = hedon3, 
+    error_format = "[{statistic}]",
+    note = "{stars}. T statistic in brackets.")
+```
+
+### Plots
+
+```{r, fig.width=3, fig.height=3}
+hedon1 %>% 
+  plot()
+```
+
+```{r, fig.width=3, fig.height=3}
+hedon2 %>% 
+  plot()
+```
+
+```{r, fig.width=3, fig.height=3}
+hedon3 %>% 
+  plot()
+```
+
+# Oppgave 7
+
+```{r}
+hedon1 %>% 
+    linearHypothesis(c("year_month2014-06=0", "year_month2014-07=0",
+                       "year_month2014-08=0", "year_month2014-09=0",
+                       "year_month2014-10=0", "year_month2014-11=0",
+                       "year_month2014-12=0", "year_month2015-01=0",
+                       "year_month2015-02=0", "year_month2015-03=0",
+                       "year_month2015-04=0", "year_month2015-05=0"),
+                     white_adjust = hc3)
+```
+
+```{r}
+hedon2 %>% 
+    linearHypothesis(c("year_month2014-06=0", "year_month2014-07=0",
+                       "year_month2014-08=0", "year_month2014-09=0",
+                       "year_month2014-10=0", "year_month2014-11=0",
+                       "year_month2014-12=0", "year_month2015-01=0",
+                       "year_month2015-02=0", "year_month2015-03=0",
+                       "year_month2015-04=0", "year_month2015-05=0"),
+                     white_adjust = hc4)
+```
+
+```{r}
+hedon3 %>% 
+    linearHypothesis(c("year_month2014-06=0", "year_month2014-07=0",
+                       "year_month2014-08=0", "year_month2014-09=0",
+                       "year_month2014-10=0", "year_month2014-11=0",
+                       "year_month2014-12=0", "year_month2015-01=0",
+                       "year_month2015-02=0", "year_month2015-03=0",
+                       "year_month2015-04=0", "year_month2015-05=0"),
+                     white_adjust = hc1)
+```
+
+$H_0$ = Ikke signifikant variasjon i salgspris basert på salgstidspunkt
+
+Velger å forkaste denne nullhypotesen siden F- og P-verdiene er signifikant, og det er dermed rimelig å anta at tids-dummiene gir en effekt i modellen til tross for at de er insignifikant på individuelt nivå. Indikasjonen her er at salgspris varierer etter salgstidspunkt.
+
+# Oppgave 8
+
+```{r}
+Seattle_5555 <- here("kc_house_data_5555_Vilde_og_Susann.gpkg") %>% 
+  st_read() %>% 
+  st_transform(2926)
+```
+
+```{r}
+
+Seattle_5555 <- Seattle_5555 %>% 
+  mutate(
+    dist_cbd = st_distance(cbd, ., by_element = TRUE),
+    dist_cbd_km = set_units(dist_cbd, km),
+    year_month = substr(date, start = 1, stop = 7)
+  )
+
+
+
+```
+
+```{r}
+Seattle_5555 <- Seattle_5555 %>% 
+  rename(low = inc_fam_low_per,
+         mid = inc_fam_med_per,
+         high = inc_fam_high_per)
+
+```
+
+```{r}
+hedon3_seed <- lm(mod3, data = Seattle_5555)
+```
+
+```{r}
+huxreg("Full" = hedon3, "seed" = hedon3_seed,
+       error_format = "[{statistic}]",
+       note = "{stars}. T statistic in brackets.")
+```
+
+```{r}
+hedon3_seed <- lm(mod3, data = Seattle_5555)
+```
+
+```{r}
+Seattle_5555_nb_mat_nb <- knearneigh(Seattle_5555, k = 3)
+Seattle_5555_nb <- knn2nb(Seattle_5555_mat_nb)
+Seattle_5555_W <- nb2listw(Seattle_5555_nb, style = "W")
+```
+
+```{r}
+Seattle_5555_mat_nb10 <- knearneigh(Seattle_5555, k = 10)
+Seattle_5555_nb10 <- knn2nb(Seattle_5555_mat_nb10)
+Seattle_5555_W10 <- nb2listw(Seattle_5555_nb10, style = "W")
+```
+
+```{r}
+lm.morantest(hedon3_seed, Seattle_5555_W)
+lm.morantest(hedon3_seed, Seattle_5555_W10)
+```
+
+```{r}
+moran.plot(log(Seattle_5555$price), listw = Seattle_5555_W,
+           labels = FALSE, pch = 20, cex = 0.3)
+```
+
+```{r}
+moran.plot(log(Seattle_5555$price), listw = Seattle_5555_W10,
+           labels = FALSE, pch = 20, cex = 0.3)
+```
+
+## iv)
+
+Gi kommentar
+
+```{r}
+kc_lagrange_3 <- lm.LMtests(hedon3_seed, Seattle_5555_W, 
+               test = "all")
+kc_lagrange_3
+```
+
+```{r}
+kc_lagrange_10 <- lm.LMtests(hedon3_seed, Seattle_5555_W10, 
+               test = "all")
+kc_lagrange_10
+```
+
+## v)
+
+```{r}
+SDEM <- errorsarlm(mod3, data = Seattle_5555, listw = Seattle_5555_W, Durbin = as.formula(~ bedrooms + bathrooms + sqft_living + sqft_lot + floors + grade + yr_built + dist_cbd_km + EHD_percen + low + high))
+```
+
+Ovenfor advarer de om numeriske problemer, vi ser vekk ifra det her
+
+```{r}
+SLX_seed <- lmSLX(mod3, data = Seattle_5555, listw = Seattle_5555_W, Durbin =  as.formula(~ bedrooms + bathrooms + sqft_living+ sqft_lot + sqft_above + floors + grade + yr_built + yr_renovated + waterfront + condition + view + dist_cbd_km + EHD_percen + low + high))
+```
+
+```{r}
+SEM_seed <- errorsarlm(mod3, data = Seattle_5555, listw = Seattle_5555_W, Durbin = FALSE)
+```
+
+```{r}
+summary(impacts(SDEM_seed), zstats = TRUE)
+```
+
+```{r}
+huxreg("SEM" = SEM_seed, "OLS" = hedon3_seed, error_format = "[{statistic}]", note = "{stars}, T statistic in brackets.")
+```
+
+```{r}
+LR.Sarlm(SDEM_seed, SEM_seed)
+LR.Sarlm(SDEM_seed, SLX_seed)
+```
+
+Fortsetter ved å kontrollteste SDEM-modellen mot OLS-modellen
+
+```{r}
+LR1.Sarlm(SDEM_seed)
+```
+
+```{r}
+Hausman.test(SEM_seed)
+```
+
+```{r}
+bptest.Sarlm(SEM_seed,studentize = TRUE)
+```
+
+```{r}
+moran.plot(residuals(hedon3_seed), listw = Seattle_5555_W10)
+```
+
+```{r}
+moran.plot(residuals(SDEM_seed), listw = Seattle_5555_W10)
+```
+
+```{r}
+moran.test(residuals(SDEM_seed), listw = Seattle_5555_W10)
+```
+
+# Oppgave 9)
+
+```{r}
+set.seed(864)
+kc_house_env_var_omit_2000 <- kc_houses_env_var_omit[sample(1:nrow(
+   kc_houses_env_var_omit), 2000, replace = FALSE), ]
+```
+
+```{r}
+hedon_2000 <- lm(mod3, data = kc_house_env_var_omit_2000)
+```
+
+```{r}
+huxreg("Full" = hedon3, "2000 Seed" = hedon_2000, "1111 Seed" = hedon3_seed, 
+    error_format = "[{statistic}]",
+    note = "{stars}. T statistic in brackets.")
+```
+
+```{r}
+kc_house_data_2000_mat_nb <- knearneigh(kc_house_env_var_omit_2000, k = 3)
+kc_house_data_2000_nb <- knn2nb(kc_house_data_2000_mat_nb)
+kc_house_data_2000_W <- nb2listw(kc_house_data_2000_nb, style = "W")
+```
+
+```{r}
+kc_house_data_2000_mat_nb10 <- knearneigh(kc_house_env_var_omit_2000, k = 10)
+kc_house_data_2000_nb10 <- knn2nb(kc_house_data_2000_mat_nb10)
+kc_house_data_2000_W10 <- nb2listw(kc_house_data_2000_nb10, style = "W")
+```
+
+```{r}
+lm.morantest(hedon_2000, kc_house_data_2000_W)
+lm.morantest(hedon_2000, kc_house_data_2000_W10)
+```
+
+```{r}
+moran.plot(log(kc_house_env_var_omit_2000$price), listw= kc_house_data_2000_W, labels = FALSE, pch = 20, cex = 0.3)
+```
+
+```{r}
+moran.plot(log(kc_house_env_var_omit_2000$price), listw = kc_house_data_2000_W10, labels = FALSE, pch = 20, cex = 0.3)
+```
+
+```{r}
+kc_lagrange_3_2000 <- lm.LMtests(hedon_2000, kc_house_data_2000_W, test = "all")
+kc_lagrange_3_2000
+```
+
+```{r}
+kc_lagrange_10_2000 <- lm.LMtests(hedon_2000, kc_house_data_2000_W10, test = "all")
+kc_lagrange_10_2000
+```
+
+```{r}
+SDEM_2000 <- errorsarlm(mod3, data = kc_house_env_var_omit_2000, listw = kc_house_data_2000_W, Durbin = as.formula(~ bedrooms + bathrooms + sqft_living + sqft_lot + floors + grade + yr_built + dist_cbd_km + EHD_percen + low + high))
+```
+
+```{r}
+SLX_2000 <- lmSLX(mod3, data = kc_house_env_var_omit_2000, listw = kc_house_data_2000_W, Durbin =  as.formula(~ bedrooms + bathrooms + sqft_living + + sqft_lot + sqft_above + floors + grade + yr_built + yr_renovated + waterfront + condition + view + dist_cbd_km + EHD_percen + low + high))
+```
+
+```{r}
+SEM_2000 <- errorsarlm(mod3, data = kc_house_env_var_omit_2000, listw = kc_house_data_2000_W, Durbin = FALSE)
+```
+
+```{r}
+summary(impacts(SDEM_2000), zstats = TRUE)
+```
+
+```{r}
+huxreg("SEM" = SEM_2000, "OLS" = hedon_2000, error_format = "[{statistic}]", note = "{stars}. T statistic in brackets.")
+
+```
+
+```{r}
+LR.Sarlm(SDEM_2000, SEM_2000)
+LR.Sarlm(SDEM_2000, SLX_2000)
+
+```
+
+```{r}
+Hausman.test(SEM_2000)
+
+```
+
+```{r}
+bptest.Sarlm(SEM_2000, studentize = TRUE)
+```
+
+..... Se på de under
+
+```{r}
+moran.plot(residuals(hedon_2000), listw = kc_house_data_2000_W10)
+```
+
+```{r}
+moran.plot(residuals(SDEM_2000), listw = kc_house_data_2000_W10)
+```
+
+```{r}
+moran.test(residuals(SDEM_2000), listw = kc_house_data_2000_W10)
+```
