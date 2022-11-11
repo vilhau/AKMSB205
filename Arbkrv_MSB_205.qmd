@@ -122,8 +122,7 @@ kc_house_data_sf <-  kc_house_data_sf %>%
 ## Oppgave 3)
 
 ```{r leser inn shp-fil og transponerer}
-kc_wadoh_map <- here("maps/WADOH_Environmental_Health_Disparities_Index_Calculated_for_King_County___wadohehdindex_area/WADOH_Environmental_Health_Disparities_Index_Calculated_for_King_County___wadohehdindex_area.shp") %>% 
-      st_read() %>% 
+kc_wadoh_map <- st_read("../maps/WADOH_Environmental_Health_Disparities_Index_Calculated_for_King_County___wadohehdindex_area/WADOH_Environmental_Health_Disparities_Index_Calculated_for_King_County___wadohehdindex_area.shp") %>% 
   st_transform(2926)
 ```
 
@@ -181,14 +180,12 @@ kc_wadoh_map_2 <- left_join(
 ```
 
 ```{r}
-kc_tracts10 <- here("../maps/censusSHP/tracts10.shp") %>% 
-  st_read() %>% 
+kc_tracts10 <- st_read("../maps/censusSHP/tracts10.shp") %>% 
   st_transform(2926)
 ```
 
 ```{r}
-kc_tracts10_shore <- here("../maps/censusSHP/tracts10_shore.shp") %>% 
-  st_read() %>% 
+kc_tracts10_shore <- st_read("../maps/censusSHP/tracts10_shore.shp") %>% 
   st_transform(2926)
 ```
 
